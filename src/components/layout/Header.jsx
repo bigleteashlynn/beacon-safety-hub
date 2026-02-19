@@ -1,9 +1,21 @@
-import { Bell, Search, MapPin, Clock } from 'lucide-react';
+import { Bell, Search, MapPin, Clock, LogOut } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@/hooks/useAuth';
 
 export function Header({ onMenuClick }) {
+    const navigate = useNavigate();
+    const { logout } = useAuth();
+
+    const handleLogout = async () => {
+        await logout();
+        localStorage.removeItem('admin_token');
+        localStorage.removeItem('admin_me');
+        navigate('/');
+    };
+
     return (
         <header className="flex h-16 items-center justify-between border-b bg-white px-6">
             {/* Left: System Status & Info */}
@@ -52,6 +64,17 @@ export function Header({ onMenuClick }) {
                         <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-red-500 border-2 border-white"></span>
                     </Button>
                 </div>
+
+                {/* Logout Button */}
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleLogout}
+                    className="ml-2 flex items-center gap-2"
+                >
+                    <LogOut className="h-4 w-4" />
+                    Logout
+                </Button>
             </div>
         </header>
     );

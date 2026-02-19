@@ -1,9 +1,12 @@
+import { useState } from 'react';
 import { DashboardLayout } from '@/components/layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
     Table,
     TableBody,
@@ -12,35 +15,8 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { Search, Plus, Users as UsersIcon, Shield, UserCog } from 'lucide-react';
-
-// Mock users
-const mockUsers = [
-    {
-        id: '1',
-        email: 'admin@beacon.gov',
-        displayName: 'Admin User',
-        role: 'admin',
-        createdAt: new Date('2024-01-01'),
-        lastLoginAt: new Date(Date.now() - 1000 * 60 * 5),
-    },
-    {
-        id: '2',
-        email: 'dispatcher@beacon.gov',
-        displayName: 'Jane Dispatcher',
-        role: 'dispatcher',
-        createdAt: new Date('2024-02-15'),
-        lastLoginAt: new Date(Date.now() - 1000 * 60 * 60),
-    },
-    {
-        id: '3',
-        email: 'supervisor@beacon.gov',
-        displayName: 'John Supervisor',
-        role: 'supervisor',
-        createdAt: new Date('2024-01-20'),
-        lastLoginAt: new Date(Date.now() - 1000 * 60 * 60 * 24),
-    },
-];
+import { Search, Plus, Users as UsersIcon, Shield, UserCog, AlertCircle } from 'lucide-react';
+import { useUsers } from '@/api';
 
 const roleConfig = {
     admin: { label: 'Admin', icon: Shield, color: 'bg-destructive text-destructive-foreground' },
@@ -48,7 +24,33 @@ const roleConfig = {
     dispatcher: { label: 'Dispatcher', icon: UsersIcon, color: 'bg-info text-info-foreground' },
 };
 
+// Skeleton loader for the users table
+const UsersSkeleton = () => (
+    <div className="space-y-3">
+        {[...Array(5)].map((_, i) => (
+            <div key={i} className="flex items-center gap-4 p-4 border rounded">
+                <Skeleton className="h-10 w-10 rounded-full" />
+                <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3 w-48" />
+                </div>
+                <Skeleton className="h-6 w-20" />
+            </div>
+        ))}
+    </div>
+);
+
 export default function Users() {
+    const [searchQuery, setSearchQuery] = useState('');
+    const { data: users = [], isLoading, error, isError } = useUsers();
+
+    // Filter users based on search query
+    const filteredUsers = users.filter(
+        (user) =>
+            user.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            user.full_name?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
     return (
         <DashboardLayout
             title="Users"
@@ -59,7 +61,12 @@ export default function Users() {
                 <CardContent className="flex items-center gap-4 py-4">
                     <div className="relative flex-1">
                         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input placeholder="Search users..." className="pl-9" />
+                        <Input
+                            placeholder="Search users by email or name..."
+                            className="pl-9"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
                     </div>
                     <Button>
                         <Plus className="mr-2 h-4 w-4" />
@@ -68,63 +75,72 @@ export default function Users() {
                 </CardContent>
             </Card>
 
+            {/* Error State */}
+            {isError && (
+                <Alert variant="destructive" className="mb-6">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                        {error?.message || 'Failed to load users. Please try again.'}
+                    </AlertDescription>
+                </Alert>
+            )}
+
             {/* Users Table */}
             <Card>
                 <CardHeader>
-                    <CardTitle>All Users</CardTitle>
+                    <CardTitle>All Users ({filteredUsers.length})</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>User</TableHead>
-                                <TableHead>Role</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead>Last Login</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {mockUsers.map((user) => {
-                                const RoleIcon = roleConfig[user.role].icon;
-                                return (
+                    {isLoading ? (
+                        <UsersSkeleton />
+                    ) : filteredUsers.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground">
+                            {searchQuery ? 'No users match your search.' : 'No users found.'}
+                        </div>
+                    ) : (
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>User</TableHead>
+                                    <TableHead>Email</TableHead>
+                                    <TableHead>Beacon Code</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {filteredUsers.map((user) => (
                                     <TableRow key={user.id}>
                                         <TableCell>
                                             <div className="flex items-center gap-3">
                                                 <Avatar>
-                                                    <AvatarImage src={user.avatarUrl} />
                                                     <AvatarFallback>
-                                                        {user.displayName.split(' ').map(n => n[0]).join('')}
+                                                        {user.full_name
+                                                            ?.split(' ')
+                                                            .map((n) => n[0])
+                                                            .join('')}
                                                     </AvatarFallback>
                                                 </Avatar>
                                                 <div>
-                                                    <p className="font-medium">{user.displayName}</p>
-                                                    <p className="text-sm text-muted-foreground">{user.email}</p>
+                                                    <p className="font-medium">{user.full_name}</p>
                                                 </div>
                                             </div>
                                         </TableCell>
-                                        <TableCell>
-                                            <Badge className={roleConfig[user.role].color}>
-                                                <RoleIcon className="mr-1 h-3 w-3" />
-                                                {roleConfig[user.role].label}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant="outline" className="border-success text-success">
-                                                Active
-                                            </Badge>
-                                        </TableCell>
                                         <TableCell className="text-sm text-muted-foreground">
-                                            {user.lastLoginAt?.toLocaleString()}
+                                            {user.email}
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge variant="outline">{user.beacon_code}</Badge>
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            <Button variant="ghost" size="sm">Edit</Button>
+                                            <Button variant="ghost" size="sm">
+                                                View
+                                            </Button>
                                         </TableCell>
                                     </TableRow>
-                                );
-                            })}
-                        </TableBody>
-                    </Table>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    )}
                 </CardContent>
             </Card>
         </DashboardLayout>

@@ -3,10 +3,12 @@
 export const APP_NAME = 'Beacon';
 export const APP_DESCRIPTION = 'Public Safety Admin Dashboard';
 
-// API Configuration (placeholders - will be replaced with actual endpoints)
+// API Configuration
+// Note: Use src/services/api.js for all fetch requests
+// These constants are informational only
 export const API_CONFIG = {
-    BASE_URL: import.meta.env.VITE_API_BASE_URL || '/api',
-    TIMEOUT: 30000,
+    BASE_URL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000',
+    TIMEOUT: parseInt(import.meta.env.VITE_REQUEST_TIMEOUT || '10000', 10),
 };
 
 // Firebase Configuration (placeholders)
