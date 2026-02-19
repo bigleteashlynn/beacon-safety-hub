@@ -47,8 +47,8 @@ export default function Auth() {
   }, [registerLoading, regFullName, regEmail, regPassword]);
 
   const saveSessionAndGo = ({ admin, token }) => {
+    // Only store token in localStorage - permissions are fetched from /admin/me endpoint
     localStorage.setItem("admin_token", token);
-    localStorage.setItem("admin_me", JSON.stringify(admin));
     navigate("/dashboard");
   };
 

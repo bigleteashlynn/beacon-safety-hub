@@ -12,7 +12,7 @@ export function Header({ onMenuClick }) {
     const handleLogout = async () => {
         await logout();
         localStorage.removeItem('admin_token');
-        localStorage.removeItem('admin_me');
+        // admin_me is never stored in localStorage, only token
         navigate('/');
     };
 

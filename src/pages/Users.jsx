@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/table';
 import { Search, Plus, Users as UsersIcon, Shield, UserCog, AlertCircle } from 'lucide-react';
 import { useUsers } from '@/api';
+import { fetchAdminMe } from '@/api/adminMe';
 
 const roleConfig = {
     admin: { label: 'Admin', icon: Shield, color: 'bg-destructive text-destructive-foreground' },
@@ -42,7 +43,31 @@ const UsersSkeleton = () => (
 
 export default function Users() {
     const [searchQuery, setSearchQuery] = useState('');
+    const [me, setMe] = useState(null);
+    const [meLoading, setMeLoading] = useState(true);
+
     const { data: users = [], isLoading, error, isError } = useUsers();
+
+    // Fetch /admin/me on mount - always get fresh permissions from backend
+    useEffect(() => {
+        let mounted = true;
+
+        (async () => {
+            try {
+                const data = await fetchAdminMe();
+                if (mounted) setMe(data);
+            } catch (e) {
+                // Token missing/expired - already handled by fetchAdminMe
+                if (mounted) setMe(null);
+            } finally {
+                if (mounted) setMeLoading(false);
+            }
+        })();
+
+        return () => {
+            mounted = false;
+        };
+    }, []);
 
     // Filter users based on search query
     const filteredUsers = users.filter(
@@ -52,10 +77,7 @@ export default function Users() {
     );
 
     return (
-        <DashboardLayout
-            title="Users"
-            subtitle="Manage admin and dispatcher accounts"
-        >
+        <DashboardLayout me={me} meLoading={meLoading}>
             {/* Search & Actions */}
             <Card className="mb-6">
                 <CardContent className="flex items-center gap-4 py-4">
@@ -103,7 +125,6 @@ export default function Users() {
                                 <TableRow>
                                     <TableHead>User</TableHead>
                                     <TableHead>Email</TableHead>
-                                    <TableHead>Beacon Code</TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -127,9 +148,6 @@ export default function Users() {
                                         </TableCell>
                                         <TableCell className="text-sm text-muted-foreground">
                                             {user.email}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant="outline">{user.beacon_code}</Badge>
                                         </TableCell>
                                         <TableCell className="text-right">
                                             <Button variant="ghost" size="sm">

@@ -58,33 +58,34 @@ export const STATUS_CONFIG = {
 };
 
 // Navigation items grouped by category
+// Each item can optionally have a requiredPermission field
+// If specified, the menu item will only show for users with that permission
+// If not specified, the item is visible to all authenticated users
 export const NAV_ITEMS = [
-    {
-        category: 'COMMAND',
-        items: [
-            { path: '/dashboard', label: 'Overview', icon: 'LayoutDashboard' },
-            { path: '/sos', label: 'Live Operations', icon: 'Radio' },
+  {
+    category: "COMMAND",
+    items: [
+      { path: "/dashboard", label: "Overview", icon: "LayoutDashboard" },
+      { path: "/sos", label: "Live Operations", icon: "Radio" },
+      { path: "/incidents", label: "Incidents", icon: "AlertTriangle" },
+    ],
+  },
+  {
+    category: "ANALYSIS",
+    items: [
+      { path: "/map", label: "Map View", icon: "Map" },
+      { path: "/reports", label: "Reports", icon: "FileText" },
 
-            { path: '/incidents', label: 'Incidents', icon: 'AlertTriangle' },
-        ]
-    },
-    {
-        category: 'ANALYSIS',
-        items: [
-            { path: '/map', label: 'Map View', icon: 'Map' },
-            { path: '/reports', label: 'Reports', icon: 'FileText' },
-            { path: '/users', label: 'Personnel', icon: 'Users' },
-        ]
-    },
-    {
-        category: 'SYSTEM',
-        items: [
-            { path: '/health', label: 'System Health', icon: 'Activity' },
-            { path: '/settings', label: 'Settings', icon: 'Settings' },
-        ]
-    }
+      // ✅ Admin-only: Personnel management
+      {
+        path: "/personnel",
+        label: "Personnel",
+        icon: "Users",
+        requiredPermission: "manage_users",
+      },
+    ],
+  },
 ];
-
 
 // Pagination defaults
 export const PAGINATION = {

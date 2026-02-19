@@ -1,6 +1,6 @@
 /**
  * API Service Layer
- * 
+ *
  * Provides a centralized, clean fetch wrapper for all backend communication.
  * Features:
  * - Environment-based base URL configuration
@@ -8,10 +8,11 @@
  * - Error handling with logging
  * - Request/response interceptors
  * - Helper methods for common HTTP verbs (GET, POST, PATCH, DELETE)
+ * - ✅ Auto Bearer token for /admin/* endpoints
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
-const REQUEST_TIMEOUT = parseInt(import.meta.env.VITE_REQUEST_TIMEOUT || '10000', 10);
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000";
+const REQUEST_TIMEOUT = parseInt(import.meta.env.VITE_REQUEST_TIMEOUT || "10000", 10);
 
 /**
  * Custom error class for API errors
@@ -19,7 +20,7 @@ const REQUEST_TIMEOUT = parseInt(import.meta.env.VITE_REQUEST_TIMEOUT || '10000'
 class ApiError extends Error {
   constructor(message, status, data) {
     super(message);
-    this.name = 'ApiError';
+    this.name = "ApiError";
     this.status = status;
     this.data = data;
   }
@@ -36,33 +37,45 @@ const createFetchOptions = (options = {}) => {
     ...options,
     signal: controller.signal,
     headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
     },
-    timeoutId, // Store timeout ID for cleanup
+    timeoutId,
     controller,
   };
 };
 
 /**
- * Request interceptor - modify request before sending
- * Currently used for adding auth headers (Firebase tokens, etc.)
+ * ✅ Request interceptor
+ * Adds Authorization header for /admin/* routes if admin_token exists
  */
 const requestInterceptor = async (url, options) => {
-  // Example: Add Firebase token if available
-  // const token = await getAuthToken();
-  // if (token) {
-  //   options.headers.Authorization = `Bearer ${token}`;
-  // }
+  const headers = { ...(options.headers || {}) };
 
-  return { url, options };
+  // Only attach admin token for admin endpoints
+  // (adjust if your backend uses a different prefix)
+  const isAdminEndpoint = url.includes("/admin");
+
+  if (isAdminEndpoint) {
+    const token = localStorage.getItem("admin_token");
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+  }
+
+  return {
+    url,
+    options: {
+      ...options,
+      headers,
+    },
+  };
 };
 
 /**
  * Response interceptor - handle responses globally
  */
 const responseInterceptor = (response, data) => {
-  // Log successful responses in dev
   if (import.meta.env.DEV) {
     console.log(`[API] ${response.status} ${response.statusText}`, data);
   }
@@ -73,15 +86,20 @@ const responseInterceptor = (response, data) => {
  * Error interceptor - handle errors globally
  */
 const errorInterceptor = (error, statusCode) => {
-  // Log errors in dev
   if (import.meta.env.DEV) {
     console.error(`[API Error] ${statusCode}`, error);
   }
 
-  // Handle global error cases
+  // ✅ If unauthorized, clear token so app doesn't keep failing
   if (statusCode === 401) {
-    // Unauthorized - could trigger logout
-    // window.dispatchEvent(new Event('auth:logout'));
+    try {
+      localStorage.removeItem("admin_token");
+      localStorage.removeItem("admin_me"); // optional if you still store it
+      // optional: notify app to redirect
+      window.dispatchEvent(new Event("auth:logout"));
+    } catch (e) {
+      // ignore
+    }
   }
 
   throw error;
@@ -89,7 +107,6 @@ const errorInterceptor = (error, statusCode) => {
 
 /**
  * Main fetch wrapper function
- * Handles all common fetch logic: timeouts, error parsing, logging
  */
 const request = async (endpoint, options = {}) => {
   const url = `${API_BASE_URL}${endpoint}`;
@@ -108,46 +125,41 @@ const request = async (endpoint, options = {}) => {
 
     // Parse response body
     let data = null;
-    const contentType = response.headers.get('content-type');
+    const contentType = response.headers.get("content-type");
 
-    if (contentType?.includes('application/json')) {
+    if (contentType?.includes("application/json")) {
       data = await response.json();
     } else if (response.ok) {
       data = await response.text();
+    } else {
+      // try to read text body for errors too
+      try {
+        const text = await response.text();
+        data = text ? { message: text } : null;
+      } catch {
+        data = null;
+      }
     }
 
     // Handle HTTP errors
     if (!response.ok) {
-      const error = new ApiError(
-        data?.message || `HTTP ${response.status}`,
-        response.status,
-        data
-      );
+      const error = new ApiError(data?.message || `HTTP ${response.status}`, response.status, data);
       return errorInterceptor(error, response.status);
     }
 
     // Apply response interceptor
     return responseInterceptor(response, data);
   } catch (error) {
-    // Clear timeout
     clearTimeout(timeoutId);
 
     // Handle abort (timeout)
-    if (error.name === 'AbortError') {
-      const timeoutError = new ApiError(
-        `Request timeout (${REQUEST_TIMEOUT}ms)`,
-        408,
-        null
-      );
+    if (error.name === "AbortError") {
+      const timeoutError = new ApiError(`Request timeout (${REQUEST_TIMEOUT}ms)`, 408, null);
       return errorInterceptor(timeoutError, 408);
     }
 
     // Handle network errors
-    const networkError = new ApiError(
-      error.message || 'Network error',
-      0,
-      null
-    );
+    const networkError = new ApiError(error.message || "Network error", 0, null);
     return errorInterceptor(networkError, 0);
   }
 };
@@ -158,7 +170,7 @@ const request = async (endpoint, options = {}) => {
 export const apiGet = (endpoint, options = {}) =>
   request(endpoint, {
     ...options,
-    method: 'GET',
+    method: "GET",
   });
 
 /**
@@ -167,7 +179,7 @@ export const apiGet = (endpoint, options = {}) =>
 export const apiPost = (endpoint, data, options = {}) =>
   request(endpoint, {
     ...options,
-    method: 'POST',
+    method: "POST",
     body: JSON.stringify(data),
   });
 
@@ -177,7 +189,7 @@ export const apiPost = (endpoint, data, options = {}) =>
 export const apiPatch = (endpoint, data, options = {}) =>
   request(endpoint, {
     ...options,
-    method: 'PATCH',
+    method: "PATCH",
     body: JSON.stringify(data),
   });
 
@@ -187,7 +199,7 @@ export const apiPatch = (endpoint, data, options = {}) =>
 export const apiDelete = (endpoint, options = {}) =>
   request(endpoint, {
     ...options,
-    method: 'DELETE',
+    method: "DELETE",
   });
 
 /**

@@ -1,21 +1,18 @@
-import { useQuery } from '@tanstack/react-query';
-import { apiGet } from '@/services/api';
+import { useQuery } from "@tanstack/react-query";
+import { apiGet } from "@/services/api";
 
 /**
- * Hook to fetch all users (admin endpoint)
- * 
- * Usage:
- * const { data: users, isLoading, error } = useUsers();
+ * Hook to fetch all personnel/admin accounts
  */
 export const useUsers = (options = {}) => {
   return useQuery({
-    queryKey: ['users'],
+    queryKey: ["personnel"],
     queryFn: async () => {
-      const response = await apiGet('/admin/users');
+      const response = await apiGet("/admin/admins"); // ✅ FIX
       return response || [];
     },
-    staleTime: 1000 * 60 * 5, // 5 minutes
-    gcTime: 1000 * 60 * 10, // 10 minutes (formerly cacheTime)
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 10,
     retry: 2,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
     ...options,
